@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { FC } from 'react';
-import { ArrowLeft, ArrowRight, BrainCircuit, RefreshCw, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BrainCircuit, RefreshCw, Sparkles, Wand2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
-import { getFlashcards } from '@/app/actions';
+import { getFlashcards, getSuggestedTopic } from '@/app/actions';
 import type { Flashcard as FlashcardType } from '@/lib/types';
 import { generateQuizOptions } from '@/lib/quiz-helpers';
 import { useToast } from "@/hooks/use-toast";
@@ -27,28 +27,64 @@ type QuizState = {
 };
 
 const TopicForm: FC<{ onGenerate: (topic: string) => void; isLoading: boolean }> = ({ onGenerate, isLoading }) => {
+  const [topic, setTopic] = useState('');
+  const [isSuggesting, setIsSuggesting] = useState(false);
+  const { toast } = useToast();
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const topic = formData.get('topic') as string;
     if (topic) {
       onGenerate(topic);
     }
   };
 
+  const handleSuggestTopic = async () => {
+    setIsSuggesting(true);
+    try {
+      const result = await getSuggestedTopic();
+      if ('error' in result) {
+        throw new Error(result.error);
+      }
+      setTopic(result.topic);
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred.';
+      toast({
+        variant: "destructive",
+        title: "Error Suggesting Topic",
+        description: errorMessage,
+      });
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="flex w-full max-w-md items-center space-x-2">
-      <Input
-        name="topic"
-        type="text"
-        placeholder="e.g. 'Common kitchen items'"
-        className="text-base"
-        disabled={isLoading}
-        required
-      />
-      <Button type="submit" disabled={isLoading}>
-        {isLoading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-        Generate
+    <form onSubmit={handleSubmit} className="w-full max-w-md space-y-3">
+      <div className="flex w-full items-center space-x-2">
+        <Input
+          name="topic"
+          type="text"
+          placeholder="e.g. 'Common kitchen items'"
+          className="text-base"
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
+          disabled={isLoading || isSuggesting}
+          required
+        />
+        <Button type="submit" disabled={isLoading || isSuggesting || !topic.trim()}>
+          {isLoading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+          Generate
+        </Button>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        onClick={handleSuggestTopic}
+        disabled={isLoading || isSuggesting}
+      >
+        {isSuggesting ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+        Suggest a topic for me
       </Button>
     </form>
   );
