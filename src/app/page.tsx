@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { FC } from 'react';
 import { ArrowLeft, ArrowRight, BrainCircuit, RefreshCw, Sparkles } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -108,17 +108,44 @@ export default function Home() {
     }
   };
   
-  const handleNext = () => {
-    if (currentIndex < flashcards.length - 1) {
-      setCurrentIndex(prev => prev + 1);
+  const currentCard = useMemo(() => flashcards[currentIndex], [flashcards, currentIndex]);
+  
+  const handleNext = useCallback(() => {
+    const canGoNext = currentIndex < flashcards.length - 1;
+    if (!canGoNext) return;
+    
+    if (mode === 'quiz' && currentCard && !quizState.answers[currentCard.id]) {
+      return;
     }
-  };
 
-  const handlePrev = () => {
+    setCurrentIndex(prev => prev + 1);
+  }, [currentIndex, flashcards.length, mode, currentCard, quizState.answers]);
+
+  const handlePrev = useCallback(() => {
     if (currentIndex > 0) {
       setCurrentIndex(prev => prev - 1);
     }
-  };
+  }, [currentIndex]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      if (event.key === 'ArrowRight') {
+        handleNext();
+      } else if (event.key === 'ArrowLeft') {
+        handlePrev();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleNext, handlePrev]);
   
   const handleQuizAnswer = (cardId: string, answer: string, correctAnswer: string) => {
     const isCorrect = answer === correctAnswer;
@@ -135,7 +162,6 @@ export default function Home() {
     setQuizState(prev => ({ ...prev, answers: {}, results: {}, score: 0 }));
   };
 
-  const currentCard = useMemo(() => flashcards[currentIndex], [flashcards, currentIndex]);
   const isQuizFinished = useMemo(() => Object.keys(quizState.answers).length === flashcards.length, [quizState.answers, flashcards.length]);
   
   return (
