@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy Next.js to GitHub Pages
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   id-token: write
 
 jobs:
-  build_and_deploy:
+  build_and_export:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -26,16 +26,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
+      - name: Build and export static site
+        run: npm run build:static
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./dist  # or your build output directory
+          path: ./out
 
   deploy:
-    needs: build_and_deploy
+    needs: build_and_export
     runs-on: ubuntu-latest
     environment:
       name: github-pages
